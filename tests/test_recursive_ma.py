@@ -9,11 +9,17 @@ HERE = Path(__file__).parent
 
 @pytest.fixture
 def pickle_files():
-    return {
+    data_dict = {
         # filename: 'Sample..._ms<n>.pkl' => n
         int(pickle_file.name.split('_')[1][2]): pickle.load(pickle_file.open('rb'))
         for pickle_file in sorted(HERE.glob('*.pkl'))
     }
+
+    # rename ms<n>_mz columns to mz and ms<n>_intensity to intensity
+    for level, data in data_dict.items():
+        data.rename(columns={f'ms{level}_mz': 'mz', f'ms{level}_intensity': 'intensity'}, inplace=True)
+    
+    return data_dict
 
 @pytest.fixture
 def test_data(pickle_files, request):
