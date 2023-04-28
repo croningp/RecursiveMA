@@ -17,6 +17,8 @@ black = "^23.3.0"
 isort = "^5.12.0"
 pylint = "^2.17.3"
 pytest = "^7.3.1"
+ipykernel = "^6.22.0"
+seaborn = "^0.12.2"
 
 [build-system]
 requires = ["poetry-core"]
