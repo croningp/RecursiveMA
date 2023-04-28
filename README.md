@@ -14,7 +14,7 @@ First convert your MSn data to the tree format:
 There is a utility function to convert data of the form `{ms_level: pd.DataFrame}` to the tree format:
 ```python
 from recursive_ma import build_tree
-tree = build_tree(data)
+tree = build_tree(data, max_level=<n>)
 ```
 
 Note that this function assume that each dataframe has the columns `mz` and `intensity`, as well as `parent` for MS2 and higher.
