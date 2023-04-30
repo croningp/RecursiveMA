@@ -5,14 +5,15 @@ def estimate_by_MW(mw):
 
 def estimate_MA(data, mw):
     children = data[mw]
+    mw_estimate = estimate_by_MW(mw)
 
     if children == {}:
         # does not fragment: assume single atom
         # return 1.0
-        return estimate_by_MW(mw)
+        return mw_estimate
     elif children is None:
         # haven't tried to fragment this ion: use MW estimate
-        return estimate_by_MW(mw)
+        return mw_estimate
     else:
         child_estimates = {child: estimate_MA(children, child) for child in children}
         for child in children:
@@ -23,8 +24,8 @@ def estimate_MA(data, mw):
                 child_estimates[child] -= common_MA(children, child, complement)
             else:
                 child_estimates[child] += estimate_by_MW(mw - child)
-        # return mean corrected estimates from children
-        return min(child_estimates.values())
+        # min corrected estimates from children and self
+        return min([mw_estimate, *child_estimates.values()])
 
 
 def same_level_precursors(data, parent):
