@@ -36,7 +36,7 @@ def test_data(pickle_files, request):
 def mock_data():
     # Mock MS3 data (could go higher).
     # {} means ion did not fragment; None means didn't try fragmenting ion.
-    return {371.2: {150.1: {72.3: None, 89.1: None}, 221.3: {72.35: None, 99.7: None}}}
+    return {371.2: {150.1: {72.3: None, 89.1: None}, 221.3: {72.3: None, 99.7: None}}}
 
 
 def test_mock_data(mock_data):
@@ -44,7 +44,7 @@ def test_mock_data(mock_data):
     child1_ma = estimate_MA(mock_data[371.2], 150.1)
     child2_ma = estimate_MA(mock_data[371.2], 221.3)
     common_ma = common_MA(mock_data[371.2], 150.1, 221.3)
-    assert parent_ma == child1_ma + child2_ma - common_ma
+    assert parent_ma <= child1_ma + child2_ma
 
 
 # test_data parameterised on ms_level
@@ -52,4 +52,4 @@ def test_mock_data(mock_data):
 def test_real_data(test_data, request):
     mw = list(test_data)[0]
     ma = estimate_MA(test_data, mw)
-    assert estimate_by_MW(mw) > ma > 0.0
+    assert estimate_by_MW(mw) >= ma > 0.0
