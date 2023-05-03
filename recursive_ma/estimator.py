@@ -15,6 +15,7 @@ def estimate_MA(data, mw):
             # TODO: Use same number of decimal places as original data
             complement = round(mw - child, 1)
             child_estimates[child] += estimate_MA(children, complement)
+            child_estimates[child] += 1 # one composition step
             child_estimates[child] -= common_MA(children, child, complement)
         # min corrected estimates from children and self
         return min([mw_estimate, *child_estimates.values()])
