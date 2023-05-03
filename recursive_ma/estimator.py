@@ -12,7 +12,8 @@ def estimate_MA(data, mw):
     else:
         child_estimates = {child: estimate_MA(children, child) for child in children}
         for child in children:
-            complement = mw - child
+            # TODO: Use same number of decimal places as original data
+            complement = round(mw - child, 1)
             child_estimates[child] += estimate_MA(children, complement)
             child_estimates[child] -= common_MA(children, child, complement)
         # min corrected estimates from children and self
@@ -22,7 +23,8 @@ def estimate_MA(data, mw):
 def same_level_precursors(data, parent):
     result = {}
     for ion in data:
-        if parent - ion in data:
+        # TODO: Use same number of decimal places as original data
+        if round(parent - ion, 1) in data:
             result[ion] = None
     return result
 
