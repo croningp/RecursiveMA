@@ -18,7 +18,8 @@ def estimate_MA(data, mw):
             child_estimates[child] += 1 # one composition step
             child_estimates[child] -= common_MA(children, child, complement)
         # min corrected estimates from children and self
-        return min([mw_estimate, *child_estimates.values()])
+        improved_estimates = [estimate for estimate in child_estimates.values() if estimate < mw_estimate] + [mw_estimate]
+        return sorted([mw_estimate, *improved_estimates])[len(improved_estimates) // 2]
 
 
 def same_level_precursors(data, parent):
