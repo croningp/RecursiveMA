@@ -31,7 +31,7 @@ def same_level_precursors(data, parent):
 
 
 def precursors(data, parent):
-    if data.get(parent, None) is None:
+    if not data.get(parent, None):
         return same_level_precursors(data, parent)
     else:
         return data[parent]
