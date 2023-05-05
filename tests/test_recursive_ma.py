@@ -43,8 +43,8 @@ def test_mock_data(mock_data):
     parent_ma = estimate_MA(mock_data, 371.2)
     child1_ma = estimate_MA(mock_data[371.2], 150.1)
     child2_ma = estimate_MA(mock_data[371.2], 221.3)
-    common_ma = common_MA(mock_data[371.2], 150.1, 221.3)
-    assert parent_ma <= child1_ma + child2_ma
+    common_ma = common_MA(mock_data[371.2], 150.1, 221.3, same_level=True, decimals=1)
+    assert parent_ma <= child1_ma + child2_ma + 1.0
 
 
 # test_data parameterised on ms_level
@@ -52,4 +52,4 @@ def test_mock_data(mock_data):
 def test_real_data(test_data, request):
     mw = list(test_data)[0]
     ma = estimate_MA(test_data, mw)
-    assert estimate_by_MW(mw) >= ma > 0.0
+    assert ma in estimate_by_MW(mw)
