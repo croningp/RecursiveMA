@@ -2,6 +2,7 @@ from math import log
 from interval import interval
 from functools import reduce
 
+from tqdm.auto import tqdm
 
 def upper_bound_by_MW(mw):
     return 0.05 * mw
@@ -15,7 +16,7 @@ def estimate_by_MW(mw):
     return interval([lower_bound_by_MW(mw), upper_bound_by_MW(mw)])
 
 
-def estimate_MA(data, mw, same_level=True, decimals=1):
+def estimate_MA(data, mw, same_level=True, decimals=1, progress=False):
     children = data.get(mw, None)
     mw_estimate = estimate_by_MW(mw)
 
@@ -28,7 +29,7 @@ def estimate_MA(data, mw, same_level=True, decimals=1):
             )
             for child in children
         }
-        for child in children:
+        for child in tqdm(children) if progress else children:
             # TODO: Use same number of decimal places as original data
             complement = round(mw - child, decimals)
             child_estimates[child] += estimate_MA(
