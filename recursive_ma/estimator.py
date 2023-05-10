@@ -53,12 +53,14 @@ class MAEstimator:
                         )
                     )
 
-                child_estimates[child] = reduce(lambda x, y: x & y, ma_candidates)
+                child_estimates[child] = min(ma_candidates, key=lambda x: x.midpoint)
 
             # intersection corrected estimates from children and self
             estimate = reduce(
                 lambda x, y: x & y, [mw_estimate, *child_estimates.values()]
             )
+            if estimate == interval():
+                return reduce(lambda x, y: x | y, child_estimates.values()).midpoint
             return estimate
 
     def find_common_precursors(self, data, parent1, parent2):
