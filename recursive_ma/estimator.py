@@ -6,7 +6,7 @@ from tqdm.auto import tqdm
 
 
 def upper_bound_by_MW(mw):
-    return 0.05 * mw
+    return 0.06 * mw
 
 
 def lower_bound_by_MW(mw):
