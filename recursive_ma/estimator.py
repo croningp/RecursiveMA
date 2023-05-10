@@ -18,9 +18,9 @@ def estimate_by_MW(mw):
 
 
 class MAEstimator:
-    def __init__(self, same_level=True, decimals=1, adduct_mass=1.00):
+    def __init__(self, same_level=True, tol=0.01, adduct_mass=1.007825):
         self.same_level = same_level
-        self.decimals = decimals
+        self.tol = tol
         # default adduct is H+ (monoisotopic mass = 1.007825)
         self.adduct_mass = adduct_mass
 
@@ -33,7 +33,7 @@ class MAEstimator:
             return mw_estimate
         else:
             for child in tqdm(children) if progress else children:
-                complement = round(mw - child + self.adduct_mass, self.decimals)
+                complement = mw - child + self.adduct_mass
                 common_precursors = self.find_common_precursors(
                     children,
                     child,
@@ -47,7 +47,7 @@ class MAEstimator:
                         sum(
                             self.estimate_MA(
                                 children,
-                                round(chunk, self.decimals),
+                                chunk,
                             )
                             for chunk in chunks
                         )
@@ -67,7 +67,12 @@ class MAEstimator:
         return set(precursors1).intersection(precursors2)
 
     def precursors(self, data, parent):
-        children = data.get(parent, None)
+        if parent not in data:
+            parent_candidates = [d for d in data if d - self.tol < parent < d + self.tol]
+            if not parent_candidates:
+                return {parent: {}}
+            parent = min(parent_candidates, key=lambda c: abs(c - parent))
+        children = data[parent]
         if not children:
             result = self.same_level_precursors(data, parent) if self.same_level else {}
         else:
@@ -77,7 +82,10 @@ class MAEstimator:
 
     def same_level_precursors(self, data, parent):
         result = {}
+        tol = self.tol
         for ion in data:
-            if round(parent - ion + self.adduct_mass, self.decimals) in data:
-                result[ion] = None
+            target = parent - ion + self.adduct_mass
+            candidates = [d for d in data if d - tol < target < d + tol]
+            if candidates:
+                result[min(candidates, key=lambda c: abs(c - target))] = None
         return result
