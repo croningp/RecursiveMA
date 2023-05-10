@@ -4,8 +4,9 @@ from functools import reduce
 
 from tqdm.auto import tqdm
 
+
 def upper_bound_by_MW(mw):
-    return 0.05 * mw
+    return 0.06 * mw
 
 
 def lower_bound_by_MW(mw):
@@ -16,71 +17,77 @@ def estimate_by_MW(mw):
     return interval([lower_bound_by_MW(mw), upper_bound_by_MW(mw)])
 
 
-def estimate_MA(data, mw, same_level=True, decimals=1, progress=False):
-    children = data.get(mw, None)
-    mw_estimate = estimate_by_MW(mw)
+class MAEstimator:
+    def __init__(self, same_level=True, tol=0.01, adduct_mass=1.007825):
+        self.same_level = same_level
+        self.tol = tol
+        # default adduct is H+ (monoisotopic mass = 1.007825)
+        self.adduct_mass = adduct_mass
 
-    if not children:
-        return mw_estimate
-    else:
-        child_estimates = {
-            child: estimate_MA(
-                children, child, same_level=same_level, decimals=decimals
+    def estimate_MA(self, tree: dict[float, dict], mw: float, progress=False):
+        children = tree.get(mw, None)
+        mw_estimate = estimate_by_MW(mw)
+        child_estimates = {}
+
+        if not children:
+            return mw_estimate
+        else:
+            for child in tqdm(children) if progress else children:
+                complement = mw - child + self.adduct_mass
+                common_precursors = self.find_common_precursors(
+                    children,
+                    child,
+                    complement,
+                )
+
+                ma_candidates = []
+                for precursor in common_precursors | {0.0}:
+                    chunks = [child - precursor, complement - precursor, precursor]
+                    ma_candidates.append(
+                        sum(
+                            self.estimate_MA(
+                                children,
+                                chunk,
+                            )
+                            for chunk in chunks
+                        )
+                    )
+
+                child_estimates[child] = min(ma_candidates, key=lambda x: x.midpoint)
+
+            # intersection corrected estimates from children and self
+            estimate = reduce(
+                lambda x, y: x & y, [mw_estimate, *child_estimates.values()]
             )
-            for child in children
-        }
-        for child in tqdm(children) if progress else children:
-            # TODO: Use same number of decimal places as original data
-            complement = round(mw - child, decimals)
-            child_estimates[child] += estimate_MA(
-                children,
-                complement,
-                same_level=same_level,
-                decimals=decimals,
-            )
-            child_estimates[child] += 1  # one composition step
-            child_estimates[child] -= common_MA(
-                children,
-                child,
-                complement,
-                same_level=same_level,
-                decimals=decimals,
-            )
-        # intersection corrected estimates from children and self
-        estimate = reduce(lambda x, y: x & y, [mw_estimate, *child_estimates.values()])
-        return estimate
+            if estimate == interval():
+                return reduce(lambda x, y: x | y, child_estimates.values()).midpoint
+            return estimate
 
+    def find_common_precursors(self, data, parent1, parent2):
+        precursors1 = self.precursors(data, parent1)
+        precursors2 = self.precursors(data, parent2)
+        return set(precursors1).intersection(precursors2)
 
-def same_level_precursors(data, parent, decimals):
-    result = {}
-    for ion in data:
-        # TODO: Use same number of decimal places as original data
-        if round(parent - ion, decimals) in data:
-            result[ion] = None
-    return result
+    def precursors(self, data, parent):
+        if parent not in data:
+            parent_candidates = [d for d in data if d - self.tol < parent < d + self.tol]
+            if not parent_candidates:
+                return {parent: {}}
+            parent = min(parent_candidates, key=lambda c: abs(c - parent))
+        children = data[parent]
+        if not children:
+            result = self.same_level_precursors(data, parent) if self.same_level else {}
+        else:
+            # sometimes child peaks are heavier than parent
+            result = {k: v for k, v in children.items() if k < parent}
+        return {parent: children, **result}
 
-
-def precursors(data, parent, same_level, decimals):
-    children = data.get(parent, None)
-    if not children:
-        result = same_level_precursors(data, parent, decimals) if same_level else {}
-    else:
-        # sometimes child peaks are heavier than parent
-        result = {k: v for k, v in children.items() if k < parent}
-    return {parent: children, **result}
-
-
-def common_MA(data, parent1, parent2, same_level, decimals):
-    precursors1 = precursors(data, parent1, same_level=same_level, decimals=decimals)
-    precursors2 = precursors(data, parent2, same_level=same_level, decimals=decimals)
-    common_precursors = set(precursors1).intersection(precursors2)
-    ion_MAs = [
-        estimate_MA(precursors1, precursor, same_level=same_level, decimals=decimals)
-        & estimate_MA(precursors2, precursor, same_level=same_level, decimals=decimals)
-        for precursor in common_precursors
-    ]
-    return (
-        max(ion_MAs, key=lambda ma_interval: ma_interval.midpoint)
-        if ion_MAs
-        else interval([0.0, 0.0])
-    )
+    def same_level_precursors(self, data, parent):
+        result = {}
+        tol = self.tol
+        for ion in data:
+            target = parent - ion + self.adduct_mass
+            candidates = [d for d in data if d - tol < target < d + tol]
+            if candidates:
+                result[min(candidates, key=lambda c: abs(c - target))] = None
+        return result
