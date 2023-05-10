@@ -17,65 +17,67 @@ def estimate_by_MW(mw):
     return interval([lower_bound_by_MW(mw), upper_bound_by_MW(mw)])
 
 
-def estimate_MA(data, mw, same_level=True, decimals=1, progress=False):
-    children = data.get(mw, None)
-    mw_estimate = estimate_by_MW(mw)
-    child_estimates = {}
+class MAEstimator:
+    def __init__(self, same_level=True, decimals=1, adduct_mass=1.00):
+        self.same_level = same_level
+        self.decimals = decimals
+        # default adduct is H+ (monoisotopic mass = 1.007825)
+        self.adduct_mass = adduct_mass
 
-    if not children:
-        return mw_estimate
-    else:
-        for child in tqdm(children) if progress else children:
-            complement = round(mw - child, decimals)
-            precursors = common_precursors(
-                children,
-                child,
-                complement,
-                same_level=same_level,
-                decimals=decimals,
-            )
+    def estimate_MA(self, tree: dict[float, dict], mw: float, progress=False):
+        children = tree.get(mw, None)
+        mw_estimate = estimate_by_MW(mw)
+        child_estimates = {}
 
-            ma_candidates = []
-            for precursor in precursors | {0.0}:
-                chunks = [child - precursor, complement - precursor, precursor]
-                ma_candidates.append(
-                    sum(
-                        estimate_MA(
-                            children,
-                            round(chunk, decimals),
-                            same_level=same_level,
-                            decimals=decimals,
-                        )
-                        for chunk in chunks
-                    )
+        if not children:
+            return mw_estimate
+        else:
+            for child in tqdm(children) if progress else children:
+                complement = round(mw - child + self.adduct_mass, self.decimals)
+                common_precursors = self.find_common_precursors(
+                    children,
+                    child,
+                    complement,
                 )
 
-            child_estimates[child] = reduce(lambda x, y: x & y, ma_candidates)
+                ma_candidates = []
+                for precursor in common_precursors | {0.0}:
+                    chunks = [child - precursor, complement - precursor, precursor]
+                    ma_candidates.append(
+                        sum(
+                            self.estimate_MA(
+                                children,
+                                round(chunk, self.decimals),
+                            )
+                            for chunk in chunks
+                        )
+                    )
 
-        # intersection corrected estimates from children and self
-        estimate = reduce(lambda x, y: x & y, [mw_estimate, *child_estimates.values()])
-        return estimate
+                child_estimates[child] = reduce(lambda x, y: x & y, ma_candidates)
 
+            # intersection corrected estimates from children and self
+            estimate = reduce(
+                lambda x, y: x & y, [mw_estimate, *child_estimates.values()]
+            )
+            return estimate
 
-def same_level_precursors(data, parent, decimals):
-    result = {}
-    for ion in data:
-        if round(parent - ion, decimals) in data:
-            result[ion] = None
-    return result
+    def find_common_precursors(self, data, parent1, parent2):
+        precursors1 = self.precursors(data, parent1)
+        precursors2 = self.precursors(data, parent2)
+        return set(precursors1).intersection(precursors2)
 
+    def precursors(self, data, parent):
+        children = data.get(parent, None)
+        if not children:
+            result = self.same_level_precursors(data, parent) if self.same_level else {}
+        else:
+            # sometimes child peaks are heavier than parent
+            result = {k: v for k, v in children.items() if k < parent}
+        return {parent: children, **result}
 
-def precursors(data, parent, same_level, decimals):
-    children = data.get(parent, None)
-    if not children:
-        result = same_level_precursors(data, parent, decimals) if same_level else {}
-    else:
-        # sometimes child peaks are heavier than parent
-        result = {k: v for k, v in children.items() if k < parent}
-    return {parent: children, **result}
-
-
-def common_precursors(data, parent1, parent2, same_level, decimals):
-    precursors1 = precursors(data, parent1, same_level=same_level, decimals=decimals)
-    precursors2 = precursors(data, parent2, same_level=same_level, decimals=decimals)
-    return set(precursors1).intersection(precursors2)
+    def same_level_precursors(self, data, parent):
+        result = {}
+        for ion in data:
+            if round(parent - ion + self.adduct_mass, self.decimals) in data:
+                result[ion] = None
+        return result
