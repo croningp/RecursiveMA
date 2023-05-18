@@ -1,9 +1,8 @@
 from math import log
 from interval import interval
-from functools import reduce
+from .isotopes import ISOTOPES
 
 from tqdm.auto import tqdm
-
 
 # Monoisotopic masses of common adduct ions
 COMMON_PRECURSORS = [
@@ -19,10 +18,6 @@ def upper_bound_by_MW(mw):
 
 def lower_bound_by_MW(mw):
     return log(max(mw * 0.06, 1.0), 2)
-
-
-def estimate_by_MW(mw):
-    return interval([lower_bound_by_MW(mw), upper_bound_by_MW(mw)])
 
 
 def unify_trees(trees: list[dict]):
@@ -46,15 +41,22 @@ def unify_trees(trees: list[dict]):
 
 
 class MAEstimator:
-    def __init__(self, same_level=True, tol=0.01, adduct_masses=COMMON_PRECURSORS):
+    def __init__(self, same_level=True, tol=0.01, exact_mass_digits=3, adduct_masses=COMMON_PRECURSORS):
         self.same_level = same_level
         self.tol = tol
-        # default adduct is H+ (monoisotopic mass = 1.007825)
+        self.exact_mass_digits = exact_mass_digits
+        self.isotope_weights = set(round(w, exact_mass_digits) for w in ISOTOPES.values())
         self.adduct_masses = adduct_masses
 
+    def estimate_by_MW(self, mw):
+        if round(mw, self.exact_mass_digits) in self.isotope_weights:
+            print(f'HIT: {mw}')
+            return interval([1.0, 1.0])
+        return interval([lower_bound_by_MW(mw), upper_bound_by_MW(mw)])
+    
     def estimate_MA(self, tree: dict[float, dict], mw: float, progress=False):
         children = tree.get(mw, None)
-        mw_estimate = estimate_by_MW(mw)
+        mw_estimate = self.estimate_by_MW(mw)
         child_estimates = {}
 
         if not children:
