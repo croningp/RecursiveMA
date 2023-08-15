@@ -1,6 +1,6 @@
 ISOTOPES = {
     "Antimony": 120.903824,
-    "Argon": 39.962383,
+    # "Argon": 39.962383,
     "Arsenic": 74.921596,
     "Barium": 137.905236,
     "Bismuth": 208.980388,
