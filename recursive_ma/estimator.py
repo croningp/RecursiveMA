@@ -1,7 +1,8 @@
 import functools
-from math import log
-from interval import interval
 from .isotopes import ISOTOPES
+
+import numpy as np
+from scipy.stats.distributions import skewnorm
 
 from tqdm.auto import tqdm
 
@@ -15,13 +16,15 @@ COMMON_PRECURSORS = [
 # Minimum MW of what can be considered a fragment
 MIN_CHUNK = 5.0
 
+def ma_distribution_params(mw):
+    alpha = -0.0044321370413747405 * mw + -1.1014882364398888
+    loc = 0.075 * mw - 1.3
+    scale = 0.008058454819492319 * mw + 0.546185725719078
+    return alpha, loc, scale
 
-def upper_bound_by_MW(mw):
-    return max(0.075 * mw - 1, 0.0)
-
-
-def lower_bound_by_MW(mw):
-    return log(max(mw * 0.075, 1.0), 2)
+def ma_samples(mw, n_samples):
+    alpha, loc, scale = ma_distribution_params(mw)
+    return np.maximum(skewnorm(alpha, loc, scale).rvs(n_samples), 0.)
 
 
 def unify_trees(trees: list[dict]):
@@ -45,10 +48,12 @@ def unify_trees(trees: list[dict]):
 
 
 class MAEstimator:
-    def __init__(self, same_level=True, tol=0.01, adduct_masses=COMMON_PRECURSORS):
+    def __init__(self, same_level=True, tol=0.01, adduct_masses=COMMON_PRECURSORS, n_samples=20):
         self.same_level = same_level
         self.tol = tol
         self.adduct_masses = adduct_masses
+        self.n_samples = n_samples
+        self.zero = np.zeros(n_samples)
 
     @functools.cache
     def estimate_by_MW(self, mw):
@@ -57,8 +62,8 @@ class MAEstimator:
             if lower < weight < upper:
                 # MW matches an isotope; MA = 0
                 print(f"HIT: {mw} ~ {isotope} ({weight})")
-                return interval([0.0, 0.0])
-        return interval([lower_bound_by_MW(mw), upper_bound_by_MW(mw)])
+                return self.zero
+        return ma_samples(mw, self.n_samples)
 
     def estimate_MA(self, tree: dict[float, dict], mw: float, progress=False):
         children = unify_trees([tree.get(mw, None) or self.precursors(tree, mw)])
@@ -72,7 +77,7 @@ class MAEstimator:
             common = [
                 p
                 for p in self.common_precursors(children, child, complement)
-                if p > MIN_CHUNK
+                if p > MIN_CHUNK and max(child - p, complement - p) > MIN_CHUNK
             ]
 
             if common:
@@ -82,7 +87,7 @@ class MAEstimator:
             ma_candidates = [
                 self.estimate_MA(children, child)
                 + self.estimate_MA(children, complement)
-                + 1
+                + 1.0
             ]
 
             for precursor in common:
@@ -98,9 +103,10 @@ class MAEstimator:
                 )
                 ma_candidates.append(chunk_mas + 3)
 
-            child_estimates[child] = min(ma_candidates, key=lambda x: x[0].sup)
+            child_estimates[child] = min(ma_candidates, key=np.mean)
 
-        estimate = min(child_estimates.values(), key=lambda x: x[0].sup)
+        # estimate = np.concatenate(list(child_estimates.values()))
+        estimate = min(child_estimates.values(), key=np.mean)
         return estimate
 
     def common_precursors(self, data, parent1, parent2):
