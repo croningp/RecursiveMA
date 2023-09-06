@@ -14,7 +14,7 @@ COMMON_PRECURSORS = [
 ]
 
 # Minimum MW of what can be considered a fragment
-MIN_CHUNK = 5.0
+MIN_CHUNK = 20.0
 
 def ma_distribution_params(mw):
     alpha = -0.0044321370413747405 * mw + -1.1014882364398888
