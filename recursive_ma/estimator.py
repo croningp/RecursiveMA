@@ -81,7 +81,7 @@ class MAEstimator:
             ]
 
             if common:
-                print(f"Common precursors of {child} & {complement}: {common}")
+                print(f"Common precursors of {mw} = {child} + {complement}: {common}")
 
             # Simple child + complement with no common precursors
             ma_candidates = [
@@ -104,6 +104,8 @@ class MAEstimator:
                 ma_candidates.append(chunk_mas + 3)
 
             child_estimates[child] = min(ma_candidates, key=np.mean)
+            if progress:
+                print(f"MA({mw} = {child} + {complement}) = {child_estimates[child].mean()}")
 
         # estimate = np.concatenate(list(child_estimates.values()))
         estimate = min(child_estimates.values(), key=np.mean)
