@@ -4,7 +4,6 @@ from .isotopes import ISOTOPES
 import numpy as np
 from scipy.stats.distributions import skewnorm
 
-from tqdm.auto import tqdm
 
 # Monoisotopic masses of common adduct ions
 COMMON_PRECURSORS = [
@@ -65,11 +64,11 @@ class MAEstimator:
                 return self.zero
         return ma_samples(mw, self.n_samples)
 
-    def estimate_MA(self, tree: dict[float, dict], mw: float, progress=False):
+    def estimate_MA(self, tree: dict[float, dict], mw: float, progress_levels=0):
         children = unify_trees([tree.get(mw, None) or self.precursors(tree, mw)])
         child_estimates = {mw: self.estimate_by_MW(mw)}
 
-        for child in tqdm(children) if progress else children:
+        for child in children:
             complement = mw - child
             if complement < MIN_CHUNK or child < MIN_CHUNK:
                 continue
@@ -85,8 +84,8 @@ class MAEstimator:
 
             # Simple child + complement with no common precursors
             ma_candidates = [
-                self.estimate_MA(children, child)
-                + self.estimate_MA(children, complement)
+                self.estimate_MA(children, child, progress_levels - 1)
+                + self.estimate_MA(children, complement, progress_levels - 1)
                 + 1.0
             ]
 
@@ -98,13 +97,14 @@ class MAEstimator:
                     self.estimate_MA(
                         children,
                         chunk,
+                        progress_levels - 1,
                     )
                     for chunk in chunks
                 )
                 ma_candidates.append(chunk_mas + 3)
 
             child_estimates[child] = min(ma_candidates, key=np.mean)
-            if progress:
+            if progress_levels > 0:
                 print(f"MA({mw} = {child} + {complement}) = {child_estimates[child].mean()}")
 
         # estimate = np.concatenate(list(child_estimates.values()))
