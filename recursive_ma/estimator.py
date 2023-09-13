@@ -55,18 +55,19 @@ class MAEstimator:
         self.zero = np.zeros(n_samples)
 
     @functools.cache
-    def estimate_by_MW(self, mw):
+    def estimate_by_MW(self, mw, has_children):
         lower, upper = mw - self.tol, mw + self.tol
-        for isotope, weight in ISOTOPES.items():
-            if lower < weight < upper:
-                # MW matches an isotope; MA = 0
-                print(f"HIT: {mw} ~ {isotope} ({weight})")
-                return self.zero
+        if not has_children:
+            for isotope, weight in ISOTOPES.items():
+                if lower < weight < upper:
+                    # MW matches an isotope; MA = 0
+                    print(f"HIT: {mw} ~ {isotope} ({weight})")
+                    return self.zero
         return ma_samples(mw, self.n_samples)
 
     def estimate_MA(self, tree: dict[float, dict], mw: float, progress_levels=0):
         children = unify_trees([tree.get(mw, None) or self.precursors(tree, mw)])
-        child_estimates = {mw: self.estimate_by_MW(mw)}
+        child_estimates = {mw: self.estimate_by_MW(mw, bool(children))}
 
         for child in children:
             complement = mw - child
