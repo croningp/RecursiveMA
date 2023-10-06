@@ -65,8 +65,10 @@ class MAEstimator:
                     return self.zero
         return ma_samples(mw, self.n_samples)
 
-    def estimate_MA(self, tree: dict[float, dict], mw: float, progress_levels=0):
+    def estimate_MA(self, tree: dict[float, dict], mw: float, progress_levels=0, joint=False):
         children = unify_trees([tree.get(mw, None) or self.precursors(tree, mw)])
+        if joint:
+            return sum(self.estimate_MA(children, child, progress_levels - 1) for child in children)
         child_estimates = {mw: self.estimate_by_MW(mw, bool(children))}
 
         for child in children:
