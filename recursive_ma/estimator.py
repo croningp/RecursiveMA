@@ -80,7 +80,7 @@ class MAEstimator:
                 if p > MIN_CHUNK and max(child - p, complement - p) > MIN_CHUNK
             ]
 
-            if common:
+            if common and progress_levels > 0:
                 print(f"Common precursors of {mw} = {child} + {complement}: {common}")
 
             # Simple child + complement with no common precursors
