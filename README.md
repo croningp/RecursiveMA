@@ -17,7 +17,7 @@ from recursive_ma import build_tree
 tree = build_tree(data, max_level=<n>)
 ```
 
-Note that this function assume that each dataframe has the columns `mz` and `intensity`, as well as `parent` for MS2 and higher.
+Note that this function assumes that each dataframe has the columns `mz` and `intensity`, as well as `parent` for MS2 and higher.
 
 Then you can run the recursive MS2MA algorithm:
 ```python
